@@ -1,0 +1,10 @@
+name: fingerprints
+channels:
+  - conda-forge
+dependencies:
+  - python<3.11
+  - cudatoolkit=11.2
+  - cudnn=8.1.0
+  - pip
+  - pip:
+    - -r requirements.txt
