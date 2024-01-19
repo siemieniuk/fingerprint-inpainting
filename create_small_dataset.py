@@ -28,6 +28,7 @@ def create_new_dataset(
     os.mkdir(OUT_INPUT_DIR)
     os.mkdir(OUT_TRUTH_DIR)
 
+    # copy files
     files_to_cp = random.sample(os.listdir(input_folder), k=limit)
     for file in files_to_cp:
         shutil.copyfile(
