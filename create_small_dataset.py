@@ -7,7 +7,7 @@ import sys
 import tqdm
 
 
-def create_new_dataset(
+def create_small_dataset(
     input_folder: str,
     ground_truth_folder: str,
     limit: int,
@@ -74,4 +74,4 @@ if __name__ == "__main__":
         default=-1,
     )
     args = parser.parse_args(sys.argv[1:])
-    create_new_dataset(args.input, args.truth, args.limit, args.seed)
+    create_small_dataset(args.input, args.truth, args.limit, args.seed)
