@@ -44,7 +44,7 @@ def create_small_dataset(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Creates new directories with a subset of original dataset.\n"
-        'The output folders are always "./data/min_input/" and "./data/max_input"',
+        'The output folders are always "./data/min_input/" and "./data/min_ground-truth"',
         epilog="Example usage: \n python3 create_small_dataset.py -i data/training_input -t data/training_ground-truth -n 100 -s 42",
     )
     parser.add_argument(
