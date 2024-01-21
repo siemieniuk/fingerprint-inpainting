@@ -2,17 +2,26 @@ import numpy as np
 import tensorflow as tf
 
 
-def get_unet(depth: int = 3) -> tf.keras.Model:
+def get_unet(
+    depth: int = 3, dropout: float = 0.2, activation: str = "relu"
+) -> tf.keras.Model:
     def get_downsample(x, n_filters: int, dropout: float = 0.2):
         conv_layer = tf.keras.layers.Conv2D(
             filters=n_filters,
             kernel_size=(3, 3),
             padding="same",
-            activation="relu",
+            activation=activation,
             kernel_initializer="he_normal",
         )(x)
+        conv_layer = tf.keras.layers.Dropout(dropout)(conv_layer)
+        conv_layer = tf.keras.layers.Conv2D(
+            filters=n_filters,
+            kernel_size=(3, 3),
+            padding="same",
+            activation=activation,
+            kernel_initializer="he_normal",
+        )(conv_layer)
         pool_layer = tf.keras.layers.MaxPooling2D((2, 2))(conv_layer)
-        pool_layer = tf.keras.layers.Dropout(dropout)(pool_layer)
         return conv_layer, pool_layer
 
     def get_upsample(x, conv_features, n_filters: int, dropout: float = 0.2):
@@ -35,12 +44,19 @@ def get_unet(depth: int = 3) -> tf.keras.Model:
 
         # concatenation and other operations
         x = tf.keras.layers.Concatenate()([x, conv_features])
+        x = tf.keras.layers.Conv2D(
+            filters=n_filters,
+            kernel_size=(3, 3),
+            padding="same",
+            activation=activation,
+            kernel_initializer="he_normal",
+        )(x)
         x = tf.keras.layers.Dropout(dropout)(x)
         x = tf.keras.layers.Conv2D(
             filters=n_filters,
             kernel_size=(3, 3),
             padding="same",
-            activation="relu",
+            activation=activation,
             kernel_initializer="he_normal",
         )(x)
 
@@ -50,14 +66,14 @@ def get_unet(depth: int = 3) -> tf.keras.Model:
         bottleneck = tf.keras.layers.Conv2D(
             filters=current_filters,
             kernel_size=(3, 3),
-            activation="relu",
+            activation=activation,
             padding="same",
         )(x)
         bottleneck = tf.keras.layers.Dropout(0.1)(bottleneck)
         bottleneck = tf.keras.layers.Conv2D(
             filters=current_filters,
             kernel_size=(3, 3),
-            activation="relu",
+            activation=activation,
             padding="same",
         )(bottleneck)
 
