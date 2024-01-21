@@ -17,10 +17,14 @@ def create_small_dataset(
         random.seed(seed)
 
     START_DIR = os.getcwd()
+    OUTPUT_DIR = os.path.join(START_DIR, "small_data")
+    if os.path.isdir(OUTPUT_DIR):
+        shutil.rmtree(OUTPUT_DIR)
+    os.mkdir(OUTPUT_DIR)
 
     # create output directories
-    OUT_INPUT_DIR = START_DIR + "/data/min_input/"
-    OUT_TRUTH_DIR = START_DIR + "/data/min_ground-truth/"
+    OUT_INPUT_DIR = os.path.join(OUTPUT_DIR, os.path.basename(os.path.normpath(input_folder)))
+    OUT_TRUTH_DIR = os.path.join(OUTPUT_DIR, os.path.basename(os.path.normpath(ground_truth_folder)))
     if os.path.isdir(OUT_INPUT_DIR):
         shutil.rmtree(OUT_INPUT_DIR)
     if os.path.isdir(OUT_TRUTH_DIR):
@@ -30,7 +34,7 @@ def create_small_dataset(
 
     # copy files
     files_to_cp = random.sample(os.listdir(input_folder), k=limit)
-    for file in files_to_cp:
+    for file in tqdm.tqdm(files_to_cp):
         shutil.copyfile(
             os.path.join(input_folder, file),
             os.path.join(OUT_INPUT_DIR, file),
@@ -44,7 +48,7 @@ def create_small_dataset(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Creates new directories with a subset of original dataset.\n"
-        'The output folders are always "./data/min_input/" and "./data/min_ground-truth"',
+        'The output folders are always "./small_data/[input_folder_name]/" and "./small_data/[ground_truth_folder_name]/"',
         epilog="Example usage: \n python3 create_small_dataset.py -i data/training_input -t data/training_ground-truth -n 100 -s 42",
     )
     parser.add_argument(
