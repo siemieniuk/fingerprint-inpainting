@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
+INPUT_SHAPE = (400, 275, 3)
 
 def get_unet(
     depth: int = 3, dropout: float = 0.2, activation: str = "relu"
@@ -81,7 +82,7 @@ def get_unet(
 
     assert depth >= 1
 
-    inputs = tf.keras.layers.Input(shape=(400, 275, 3))
+    inputs = tf.keras.layers.Input(shape=INPUT_SHAPE)
 
     current_filters = 16
     c, p = get_downsample(inputs, current_filters)
@@ -123,3 +124,87 @@ def get_unet(
     )(upsamples[-1])
 
     return tf.keras.Model(inputs=inputs, outputs=outputs, name="unet")
+
+
+def get_custom_conv(
+    conv_activation: str = "relu",
+    dense_activation: str = "relu"
+):
+    model = tf.keras.Sequential([
+        tf.keras.layers.InputLayer(input_shape=INPUT_SHAPE),
+
+        tf.keras.layers.Conv2D(64, kernel_size=(3, 3), padding="same", activation=conv_activation),
+        tf.keras.layers.MaxPooling2D(pool_size=(3, 3)),
+
+        tf.keras.layers.Conv2D(128, kernel_size=(3, 3), padding="same", activation=conv_activation),
+        tf.keras.layers.MaxPooling2D(pool_size=(3, 3)),
+
+        tf.keras.layers.Conv2D(256, kernel_size=(3, 3), padding="same", activation=conv_activation),
+        tf.keras.layers.MaxPooling2D(pool_size=(3, 3)),
+
+        tf.keras.layers.Flatten(),
+
+        tf.keras.layers.Dense(100, activation=dense_activation),
+        tf.keras.layers.Dense(400*275, activation="sigmoid"),
+        tf.keras.layers.Reshape((400, 275, 1))
+    ])
+
+    return model
+
+
+def get_resnet_transfer() -> tf.keras.Model:
+    def get_resnet_base(x):
+        resnet = tf.keras.applications.resnet50.ResNet50(include_top=False, input_shape=INPUT_SHAPE)
+        resnet.trainable = False
+        return resnet(x)
+
+    def get_upsample(x):
+        x = tf.keras.layers.Conv2D(256, (3, 3), activation='relu', padding='same')(x)
+        x = tf.keras.layers.UpSampling2D(size=(3, 3))(x)
+        x = tf.keras.layers.Conv2D(128, (3, 3), activation='relu', padding='valid')(x)
+        x = tf.keras.layers.UpSampling2D(size=(2, 2))(x)
+        x = tf.keras.layers.Conv2D(64, (3, 3), activation='relu', padding='valid')(x)
+        x = tf.keras.layers.UpSampling2D(size=(2, 2))(x)
+        x = tf.keras.layers.Conv2D(32, (3, 3), activation='relu', padding='valid')(x)
+        x = tf.keras.layers.UpSampling2D(size=(3, 3))(x)
+        x = tf.keras.layers.Cropping2D(((13, 13), (4, 3)))(x)
+        return x
+
+    inputs = tf.keras.layers.Input(shape=INPUT_SHAPE)
+    preprocessed = tf.keras.applications.resnet50.preprocess_input(inputs)
+
+    resnet_base = get_resnet_base(preprocessed)
+    upsamples = get_upsample(resnet_base)
+    outputs = tf.keras.layers.Conv2D(1, (3, 3), activation="sigmoid", padding="same")(upsamples)
+
+    return tf.keras.Model(inputs=inputs, outputs=outputs)
+
+
+def get_mobilenet_transfer() -> tf.keras.Model:
+    def get_mobilenet_base(x):
+        mobilenet = tf.keras.applications.MobileNetV3Large(include_top=False, input_shape=(224, 224, 3))
+        mobilenet.trainable = False
+        return mobilenet(x)
+
+    def get_upsample(x):
+        x = tf.keras.layers.Conv2D(256, (3, 3), activation='relu', padding='valid')(x)
+        x = tf.keras.layers.UpSampling2D(size=(3, 3))(x)
+        x = tf.keras.layers.Conv2D(128, (3, 3), activation='relu', padding='valid')(x)
+        x = tf.keras.layers.UpSampling2D(size=(3, 3))(x)
+        x = tf.keras.layers.Conv2D(64, (3, 3), activation='relu', padding='valid')(x)
+        x = tf.keras.layers.UpSampling2D(size=(4, 4))(x)
+        x = tf.keras.layers.Conv2D(32, (3, 3), activation='relu', padding='valid')(x)
+        x = tf.keras.layers.UpSampling2D(size=(3, 2))(x)
+        
+        x = tf.keras.layers.Cropping2D(((19, 19), (9, 8)))(x)
+        return x
+
+    inputs = tf.keras.layers.Input(shape=INPUT_SHAPE)
+    resized = tf.keras.layers.Resizing(224, 224)(inputs)
+    preprocessed = tf.keras.applications.mobilenet_v3.preprocess_input(resized)
+
+    mobilenet_base = get_mobilenet_base(preprocessed)
+    upsamples = get_upsample(mobilenet_base)
+    outputs = tf.keras.layers.Conv2D(1, (3, 3), activation="sigmoid", padding="same")(upsamples)
+
+    return tf.keras.Model(inputs=inputs, outputs=outputs)

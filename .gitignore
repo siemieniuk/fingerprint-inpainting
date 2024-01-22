@@ -161,3 +161,4 @@ cython_debug/
 
 data/
 small_data/
+models/
