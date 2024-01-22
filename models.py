@@ -85,7 +85,7 @@ def get_unet(
     inputs = tf.keras.layers.Input(shape=INPUT_SHAPE)
 
     current_filters = 16
-    c, p = get_downsample(inputs, current_filters)
+    c, p = get_downsample(inputs, current_filters, dropout=dropout)
     current_filters *= 2
 
     contractions = [c]
@@ -93,16 +93,18 @@ def get_unet(
 
     # downsampling
     for i in range(depth - 1):
-        c, p = get_downsample(pools[i], current_filters)
+        c, p = get_downsample(pools[i], current_filters, dropout=dropout)
         contractions.append(c)
         pools.append(p)
         current_filters *= 2
 
     # bottleneck
-    bottleneck = get_bottleneck(pools[-1], current_filters)
+    bottleneck = get_bottleneck(pools[-1], current_filters, dropout=dropout)
 
     # upsampling
-    u = get_upsample(bottleneck, contractions[-1], current_filters)
+    u = get_upsample(
+        bottleneck, contractions[-1], current_filters, dropout=dropout
+    )
     current_filters //= 2
     upsamples = [u]
 
@@ -111,6 +113,7 @@ def get_unet(
             upsamples[i],
             contractions[depth - i - 2],
             current_filters,
+            dropout=dropout,
         )
         upsamples.append(u)
         current_filters //= 2
