@@ -1,8 +1,10 @@
 name: fingerprints
 channels:
   - conda-forge
+  - anaconda
 dependencies:
   - python<3.11
+  - graphviz
   - cudatoolkit=11.2
   - cudnn=8.1.0
   - pip
