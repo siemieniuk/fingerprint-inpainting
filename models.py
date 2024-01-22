@@ -146,7 +146,39 @@ def get_custom_conv(
 
         tf.keras.layers.Dense(100, activation=dense_activation),
         tf.keras.layers.Dense(400*275, activation="sigmoid"),
-        tf.keras.layers.Reshape((400, 275, 1))
+        tf.keras.layers.Reshape((400, 275, 1)),
+        tf.keras.optimizers.RMSprop
+    ])
+
+    return model
+
+
+def get_conv_only(conv_activation="relu"):
+    model = tf.keras.Sequential([
+        tf.keras.layers.InputLayer(input_shape=INPUT_SHAPE),
+
+        tf.keras.layers.ZeroPadding2D(padding=(0, 288-275)),
+
+        tf.keras.layers.Conv2D(64, kernel_size=(3, 3), padding="same", activation=conv_activation),
+        tf.keras.layers.AveragePooling2D(pool_size=(2, 2)),
+
+        tf.keras.layers.Conv2D(128, kernel_size=(3, 3), padding="same", activation=conv_activation),
+        tf.keras.layers.AveragePooling2D(pool_size=(2, 2)),
+        
+        tf.keras.layers.Conv2D(256, kernel_size=(3, 3), padding="same", activation=conv_activation),
+        tf.keras.layers.AveragePooling2D(pool_size=(2, 2)),
+        
+        tf.keras.layers.Conv2D(128, kernel_size=(3, 3), padding="same", activation=conv_activation),
+        tf.keras.layers.UpSampling2D((2, 2)),
+        
+        tf.keras.layers.Conv2D(64, kernel_size=(3, 3), padding="same", activation=conv_activation),
+        tf.keras.layers.UpSampling2D((2, 2)),
+        
+        tf.keras.layers.Conv2D(32, kernel_size=(3, 3), padding="same", activation=conv_activation),
+        tf.keras.layers.UpSampling2D((2, 2)),
+
+        tf.keras.layers.Conv2D(1, kernel_size=(3, 3), padding="same", activation="sigmoid"),
+        tf.keras.layers.Cropping2D(((0, 0), (0, 21)))
     ])
 
     return model
