@@ -276,6 +276,7 @@ class UnetGAN:
         self.OUTPUT_CHANNELS = 1
         self.LAMBDA = 100
         self.loss_object = tf.keras.losses.BinaryCrossentropy(from_logits=True)
+        self.metrics = []
 
         # Instantiating stuff
         self.generator = self.Generator()
@@ -476,6 +477,9 @@ class UnetGAN:
         self.gen_l1_loss.update_state(gen_l1_loss)
         self.disc_loss.update_state(disc_loss)
 
+        for metric in self.metrics:
+            metric.update_state(target, gen_output)
+
         with self.summary_writer.as_default():
             tf.summary.scalar('gen_total_loss', self.gen_total_loss.result(), step=epoch)
             tf.summary.scalar('gen_gan_loss', self.gen_gan_loss.result(), step=epoch)
@@ -484,16 +488,20 @@ class UnetGAN:
 
 
     def fit(self, train_ds, valid_ds, epochs, metrics: List[tf.keras.metrics.Metric] = [], checkpoint_steps=4000):
-        # example_input, example_target = next(iter(test_ds.take(1)))
-        start = time.time()
-
+        self.metrics = metrics
+        
         history = {
             'gen_total_loss': [],
             'gen_gan_loss': [],
             'gen_l1_loss': [],
             'disc_loss': [],
         }
+        for metric in self.metrics:
+            history[f"train_{metric.name}"] = []
+            history[f"val_{metric.name}"] = []
 
+        # Training loop
+        start = time.time()
         for epoch in range(epochs):
             epoch_losses = {
                 'gen_total_loss': tf.keras.metrics.Mean(),
@@ -531,11 +539,31 @@ class UnetGAN:
 
                 if (step+1) % checkpoint_steps == 0:
                     self.checkpoint.save(file_prefix=self.checkpoint_prefix)
+                
             history['gen_total_loss'].append(epoch_losses['gen_total_loss'].result().numpy())
             history['gen_gan_loss'].append(epoch_losses['gen_gan_loss'].result().numpy())
             history['gen_l1_loss'].append(epoch_losses['gen_l1_loss'].result().numpy())
             history['disc_loss'].append(epoch_losses['disc_loss'].result().numpy())
 
+            # Metrics logging and adding to 'history' 
+            with self.summary_writer.as_default():
+                for metric in self.metrics:
+                    tf.summary.scalar(f"train_{metric.name}", metric.result(), step=epoch)
+                    history[f"train_{metric.name}"].append(metric.result().numpy())
+                    metric.reset_state()
+
+                for x_batch_val, y_batch_val in valid_ds:
+                    pred_batch_val = self.generator(x_batch_val, training=False)
+                    for metric in self.metrics:
+                        metric.update_state(y_batch_val, pred_batch_val)
+                for metric in self.metrics:
+                    history[f"val_{metric.name}"].append(metric.result().numpy())
+                    tf.summary.scalar(f"val_{metric.name}", metric.result(), step=epoch)
+                    metric.reset_state()
+            
+        self.metrics = []
+
+        return history
 
         # for step, (input_image, target) in train_ds.repeat().take(steps).enumerate():
         #     if (step) % 1000 == 0:
