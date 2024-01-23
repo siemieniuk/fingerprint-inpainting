@@ -52,7 +52,7 @@ class PSNRMetric(tf.keras.metrics.Metric):
     def update_state(self, y_true: tf.Tensor, y_pred: tf.Tensor, sample_weight=None):
         psnr_vals = tf.image.psnr(y_true, y_pred, 1.0)
         self.psnr_sum.assign_add(tf.reduce_sum(psnr_vals))
-        self.num_examples.assign_add(tf.cast(tf.size(y_true), tf.float32))
+        self.num_examples.assign_add(tf.cast(tf.shape(y_true)[0], tf.float32))
 
     def result(self):
         return self.psnr_sum / self.num_examples
@@ -60,6 +60,26 @@ class PSNRMetric(tf.keras.metrics.Metric):
     def reset_state(self):
         self.psnr_sum.assign(0.0)
         self.num_examples.assign(0.0)
+
+
+class SSIMMetric(tf.keras.metrics.Metric):
+    def __init__(self, name="ssim", **kwargs):
+        super().__init__(name=name, **kwargs)
+        self.ssim_sum = self.add_weight(name="ssim_sum", initializer="zeros")
+        self.num_examples = self.add_weight(name="num_examples", initializer="zeros")
+
+    def update_state(self, y_true: tf.Tensor, y_pred: tf.Tensor, sample_weight=None):
+        psnr_vals = tf.image.ssim(y_true, y_pred, 1.0)
+        self.ssim_sum.assign_add(tf.reduce_sum(psnr_vals))
+        self.num_examples.assign_add(tf.cast(tf.shape(y_true)[0], tf.float32))
+
+    def result(self):
+        return self.ssim_sum / self.num_examples
+
+    def reset_state(self):
+        self.ssim_sum.assign(0.0)
+        self.num_examples.assign(0.0)
+
 
 # def PSNRMetric(y_true: tf.Tensor, y_pred: tf.Tensor):
 #     return tf.reduce_mean(tf.image.psnr(y_true, y_pred, 1.0))
