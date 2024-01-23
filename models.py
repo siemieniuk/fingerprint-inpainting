@@ -4,10 +4,11 @@ import os
 import time
 import datetime
 from IPython import display
-from typing import Tuple
+from typing import Tuple, List
+import json
 
 
-INPUT_SHAPE = (400, 275, 3)
+INPUT_SHAPE = (512, 384, 3)
 
 def get_unet(
     depth: int = 3, dropout: float = 0.2, activation: str = "relu"
@@ -290,6 +291,10 @@ class UnetGAN:
             log_dir + "fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         )
 
+        self.gen_total_loss = tf.keras.metrics.Mean(name='gen_total_loss')
+        self.gen_gan_loss = tf.keras.metrics.Mean(name='gen_gan_loss')
+        self.gen_l1_loss = tf.keras.metrics.Mean(name='gen_l1_loss')
+        self.disc_loss = tf.keras.metrics.Mean(name='disc_loss')
 
 
     def downsample(self, filters, size, apply_batchnorm=True):
@@ -446,7 +451,7 @@ class UnetGAN:
 
 
     @tf.function
-    def train_step(self, input_image, target, step):
+    def train_step(self, input_image, target, epoch):
         with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
             gen_output = self.generator(input_image, training=True)
 
@@ -466,37 +471,92 @@ class UnetGAN:
         self.discriminator_optimizer.apply_gradients(zip(discriminator_gradients,
                                                     self.discriminator.trainable_variables))
 
+        self.gen_total_loss.update_state(gen_total_loss)
+        self.gen_gan_loss.update_state(gen_gan_loss)
+        self.gen_l1_loss.update_state(gen_l1_loss)
+        self.disc_loss.update_state(disc_loss)
+
         with self.summary_writer.as_default():
-            tf.summary.scalar('gen_total_loss', gen_total_loss, step=step//1000)
-            tf.summary.scalar('gen_gan_loss', gen_gan_loss, step=step//1000)
-            tf.summary.scalar('gen_l1_loss', gen_l1_loss, step=step//1000)
-            tf.summary.scalar('disc_loss', disc_loss, step=step//1000)
+            tf.summary.scalar('gen_total_loss', self.gen_total_loss.result(), step=epoch)
+            tf.summary.scalar('gen_gan_loss', self.gen_gan_loss.result(), step=epoch)
+            tf.summary.scalar('gen_l1_loss', self.gen_l1_loss.result(), step=epoch)
+            tf.summary.scalar('disc_loss', self.disc_loss.result(), step=epoch)
 
 
-    def fit(self, train_ds, test_ds, steps):
+    def fit(self, train_ds, valid_ds, epochs, metrics: List[tf.keras.metrics.Metric] = [], checkpoint_steps=4000):
         # example_input, example_target = next(iter(test_ds.take(1)))
         start = time.time()
 
-        for step, (input_image, target) in train_ds.repeat().take(steps).enumerate():
-            if (step) % 1000 == 0:
-                display.clear_output(wait=True)
+        history = {
+            'gen_total_loss': [],
+            'gen_gan_loss': [],
+            'gen_l1_loss': [],
+            'disc_loss': [],
+        }
 
-            if step != 0:
-                print(f'Time taken for 1000 steps: {time.time()-start:.2f} sec\n')
+        for epoch in range(epochs):
+            epoch_losses = {
+                'gen_total_loss': tf.keras.metrics.Mean(),
+                'gen_gan_loss': tf.keras.metrics.Mean(),
+                'gen_l1_loss': tf.keras.metrics.Mean(),
+                'disc_loss': tf.keras.metrics.Mean(),
+            }
+            for step, (input_image, target) in train_ds.enumerate():
+                if (step) % 1000 == 0:
+                    display.clear_output(wait=True)
 
-            start = time.time()
+                    if step != 0:
+                        print(f'Time taken for 1 epoch: {time.time()-start:.2f} sec\n')
 
-            # generate_images(generator, example_input, example_target)
-            print(f"Step: {step//1000}k")
+                    start = time.time()
 
-            self.train_step(input_image, target, step)
+                    # generate_images(generator, example_input, example_target)
+                    print(f"Epoch: {epoch}")
 
-            # Training step
-            if (step+1) % 10 == 0:
-                print('.', end='', flush=True)
+                self.train_step(input_image, target, epoch)
+
+                # Training step
+                if (step+1) % 100 == 0:
+                    print('.', end='', flush=True)
+
+                epoch_losses['gen_total_loss'](self.gen_total_loss.result())
+                epoch_losses['gen_gan_loss'](self.gen_gan_loss.result())
+                epoch_losses['gen_l1_loss'](self.gen_l1_loss.result())
+                epoch_losses['disc_loss'](self.disc_loss.result())
+
+                self.gen_total_loss.reset_state()
+                self.gen_gan_loss.reset_state()
+                self.gen_l1_loss.reset_state()
+                self.disc_loss.reset_state()
+
+                if (step+1) % checkpoint_steps == 0:
+                    self.checkpoint.save(file_prefix=self.checkpoint_prefix)
+            history['gen_total_loss'].append(epoch_losses['gen_total_loss'].result().numpy())
+            history['gen_gan_loss'].append(epoch_losses['gen_gan_loss'].result().numpy())
+            history['gen_l1_loss'].append(epoch_losses['gen_l1_loss'].result().numpy())
+            history['disc_loss'].append(epoch_losses['disc_loss'].result().numpy())
 
 
-            # Save (checkpoint) the model every 5k steps
-            if (step + 1) % 5000 == 0:
-                self.checkpoint.save(file_prefix=self.checkpoint_prefix)
+        # for step, (input_image, target) in train_ds.repeat().take(steps).enumerate():
+        #     if (step) % 1000 == 0:
+        #         display.clear_output(wait=True)
+
+        #         if step != 0:
+        #             print(f'Time taken for 1000 steps: {time.time()-start:.2f} sec\n')
+
+        #         start = time.time()
+
+        #         # generate_images(generator, example_input, example_target)
+        #         print(f"Step: {step//1000}k")
+
+        #     self.train_step(input_image, target, step)
+
+        #     # Training step
+        #     if (step+1) % 10 == 0:
+        #         print('.', end='', flush=True)
+
+
+        #     # Save (checkpoint) the model every 5k steps
+        #     if (step + 1) % 5000 == 0:
+        #         self.checkpoint.save(file_prefix=self.checkpoint_prefix)
 
