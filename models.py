@@ -5,7 +5,6 @@ import time
 import datetime
 from IPython import display
 from typing import Tuple, List
-import json
 import csv
 
 
@@ -515,7 +514,6 @@ class UnetGAN:
             history[f"val_{metric.name}"] = []
 
         # Training loop
-        steps_in_epoch = train_ds.cardinality().numpy()
         start = time.time()
         for epoch in range(epochs):
             display.clear_output(wait=True)
@@ -533,7 +531,7 @@ class UnetGAN:
                 'disc_loss': tf.keras.metrics.Mean(),
             }
             for step, (input_image, target) in train_ds.enumerate():
-                self.train_step(input_image, target, epoch*steps_in_epoch + step)
+                self.train_step(input_image, target)
 
                 # Training step
                 if (step+1) % 100 == 0:
