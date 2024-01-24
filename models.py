@@ -452,7 +452,7 @@ class UnetGAN:
 
 
     @tf.function
-    def train_step(self, input_image, target, epoch):
+    def train_step(self, input_image, target, step):
         with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
             gen_output = self.generator(input_image, training=True)
 
@@ -481,10 +481,10 @@ class UnetGAN:
             metric.update_state(target, gen_output)
 
         with self.summary_writer.as_default():
-            tf.summary.scalar('gen_total_loss', self.gen_total_loss.result(), step=epoch)
-            tf.summary.scalar('gen_gan_loss', self.gen_gan_loss.result(), step=epoch)
-            tf.summary.scalar('gen_l1_loss', self.gen_l1_loss.result(), step=epoch)
-            tf.summary.scalar('disc_loss', self.disc_loss.result(), step=epoch)
+            tf.summary.scalar('gen_total_loss', self.gen_total_loss.result(), step=step)
+            tf.summary.scalar('gen_gan_loss', self.gen_gan_loss.result(), step=step)
+            tf.summary.scalar('gen_l1_loss', self.gen_l1_loss.result(), step=step)
+            tf.summary.scalar('disc_loss', self.disc_loss.result(), step=step)
 
 
     def fit(self, train_ds, valid_ds, epochs, metrics: List[tf.keras.metrics.Metric] = [], checkpoint_steps=4000):
@@ -501,8 +501,17 @@ class UnetGAN:
             history[f"val_{metric.name}"] = []
 
         # Training loop
+        steps_in_epoch = train_ds.cardinality().numpy()
         start = time.time()
         for epoch in range(epochs):
+            display.clear_output(wait=True)
+            if epoch != 0:
+                print(f'Time taken for 1 epoch: {time.time()-start:.2f} sec\n')
+            start = time.time()
+            # generate_images(generator, example_input, example_target)
+            print(f"History:\n{history}")
+            print(f"Epoch: {epoch}")
+
             epoch_losses = {
                 'gen_total_loss': tf.keras.metrics.Mean(),
                 'gen_gan_loss': tf.keras.metrics.Mean(),
@@ -510,18 +519,7 @@ class UnetGAN:
                 'disc_loss': tf.keras.metrics.Mean(),
             }
             for step, (input_image, target) in train_ds.enumerate():
-                if (step) % 1000 == 0:
-                    display.clear_output(wait=True)
-
-                    if step != 0:
-                        print(f'Time taken for 1 epoch: {time.time()-start:.2f} sec\n')
-
-                    start = time.time()
-
-                    # generate_images(generator, example_input, example_target)
-                    print(f"Epoch: {epoch}")
-
-                self.train_step(input_image, target, epoch)
+                self.train_step(input_image, target, epoch*steps_in_epoch + step)
 
                 # Training step
                 if (step+1) % 100 == 0:
