@@ -167,28 +167,25 @@ def get_conv_only(conv_activation="relu"):
     model = tf.keras.Sequential([
         tf.keras.layers.InputLayer(input_shape=INPUT_SHAPE),
 
-        tf.keras.layers.ZeroPadding2D(padding=(0, 288-275)),
-
-        tf.keras.layers.Conv2D(64, kernel_size=(3, 3), padding="same", activation=conv_activation),
-        tf.keras.layers.AveragePooling2D(pool_size=(2, 2)),
-
         tf.keras.layers.Conv2D(128, kernel_size=(3, 3), padding="same", activation=conv_activation),
-        tf.keras.layers.AveragePooling2D(pool_size=(2, 2)),
-        
+        tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
+
         tf.keras.layers.Conv2D(256, kernel_size=(3, 3), padding="same", activation=conv_activation),
-        tf.keras.layers.AveragePooling2D(pool_size=(2, 2)),
+        tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
         
-        tf.keras.layers.Conv2D(128, kernel_size=(3, 3), padding="same", activation=conv_activation),
-        tf.keras.layers.UpSampling2D((2, 2)),
+        tf.keras.layers.Conv2D(512, kernel_size=(3, 3), padding="same", activation=conv_activation),
+        tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
         
-        tf.keras.layers.Conv2D(64, kernel_size=(3, 3), padding="same", activation=conv_activation),
-        tf.keras.layers.UpSampling2D((2, 2)),
+        # tf.keras.layers.Conv2D(256, kernel_size=(3, 3), padding="same", activation=conv_activation),
+        tf.keras.layers.Conv2DTranspose(256, kernel_size=(2, 2), strides=(2, 2), padding="same"),
         
-        tf.keras.layers.Conv2D(32, kernel_size=(3, 3), padding="same", activation=conv_activation),
-        tf.keras.layers.UpSampling2D((2, 2)),
+        # tf.keras.layers.Conv2D(128, kernel_size=(3, 3), padding="same", activation=conv_activation),
+        tf.keras.layers.Conv2DTranspose(128, kernel_size=(2, 2), strides=(2, 2), padding="same"),
+        
+        # tf.keras.layers.Conv2D(64, kernel_size=(3, 3), padding="same", activation=conv_activation),
+        tf.keras.layers.Conv2DTranspose(64, kernel_size=(2, 2), strides=(2, 2), padding="same"),
 
-        tf.keras.layers.Conv2D(1, kernel_size=(3, 3), padding="same", activation="sigmoid"),
-        tf.keras.layers.Cropping2D(((0, 0), (0, 21)))
+        tf.keras.layers.Conv2D(1, kernel_size=(3, 3), padding="same", activation="sigmoid")
     ])
 
     return model
@@ -196,24 +193,25 @@ def get_conv_only(conv_activation="relu"):
 
 def get_resnet_transfer() -> tf.keras.Model:
     def get_resnet_base(x):
-        resnet = tf.keras.applications.resnet50.ResNet50(include_top=False, input_shape=(224, 224, 3))
+        resnet = tf.keras.applications.resnet50.ResNet50(include_top=False, input_shape=INPUT_SHAPE)
         resnet.trainable = False
         return resnet(x)
 
     def get_upsample(x):
+        x = tf.keras.layers.Conv2D(512, (3, 3), activation='relu', padding='same')(x)
+        x = tf.keras.layers.UpSampling2D(size=(2, 2))(x)
         x = tf.keras.layers.Conv2D(256, (3, 3), activation='relu', padding='same')(x)
-        x = tf.keras.layers.UpSampling2D(size=(3, 3))(x)
-        x = tf.keras.layers.Conv2D(128, (3, 3), activation='relu', padding='valid')(x)
         x = tf.keras.layers.UpSampling2D(size=(2, 2))(x)
-        x = tf.keras.layers.Conv2D(64, (3, 3), activation='relu', padding='valid')(x)
+        x = tf.keras.layers.Conv2D(128, (3, 3), activation='relu', padding='same')(x)
         x = tf.keras.layers.UpSampling2D(size=(2, 2))(x)
-        x = tf.keras.layers.Conv2D(32, (3, 3), activation='relu', padding='valid')(x)
-        x = tf.keras.layers.UpSampling2D(size=(3, 3))(x)
-        x = tf.keras.layers.Cropping2D(((13, 13), (4, 3)))(x)
+        x = tf.keras.layers.Conv2D(64, (3, 3), activation='relu', padding='same')(x)
+        x = tf.keras.layers.UpSampling2D(size=(2, 2))(x)
+        x = tf.keras.layers.Conv2D(32, (3, 3), activation='relu', padding='same')(x)
+        x = tf.keras.layers.UpSampling2D(size=(2, 2))(x)
         return x
 
     inputs = tf.keras.layers.Input(shape=INPUT_SHAPE)
-    inputs = tf.keras.layers.Resizing(224, 224)(inputs)
+    # inputs = tf.keras.layers.Resizing(224, 224)(inputs)
     preprocessed = tf.keras.applications.resnet50.preprocess_input(inputs)
 
     resnet_base = get_resnet_base(preprocessed)
