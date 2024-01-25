@@ -1,0 +1,12 @@
+version: "3.9"
+services:
+  api:
+    container_name: fingerprints
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+      # volumes:
+      # - ./backend/src:/backend/src/
+      # restart: always
