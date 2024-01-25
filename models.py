@@ -162,7 +162,7 @@ def get_custom_conv_and_dense(
     return model
 
 
-def get_conv_only_orig(conv_activation="relu"):
+def get_custom_autoencoder(conv_activation="relu"):
     model = tf.keras.Sequential([
         tf.keras.layers.InputLayer(input_shape=INPUT_SHAPE),
 
