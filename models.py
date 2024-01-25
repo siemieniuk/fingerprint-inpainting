@@ -136,7 +136,7 @@ def get_unet(
     return tf.keras.Model(inputs=inputs, outputs=outputs, name="unet")
 
 
-def get_custom_conv(
+def get_custom_conv_and_dense(
     conv_activation: str = "relu",
     dense_activation: str = "relu"
 ):
@@ -155,9 +155,36 @@ def get_custom_conv(
         tf.keras.layers.Flatten(),
 
         tf.keras.layers.Dense(100, activation=dense_activation),
-        tf.keras.layers.Dense(400*275, activation="sigmoid"),
-        tf.keras.layers.Reshape((400, 275, 1)),
-        tf.keras.optimizers.RMSprop
+        tf.keras.layers.Dense(INPUT_SHAPE[0]*INPUT_SHAPE[1], activation="sigmoid"),
+        tf.keras.layers.Reshape((INPUT_SHAPE[0], INPUT_SHAPE[1], 1))
+    ])
+
+    return model
+
+
+def get_conv_only_orig(conv_activation="relu"):
+    model = tf.keras.Sequential([
+        tf.keras.layers.InputLayer(input_shape=INPUT_SHAPE),
+
+        tf.keras.layers.Conv2D(64, kernel_size=(3, 3), padding="same", activation=conv_activation),
+        tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
+
+        tf.keras.layers.Conv2D(128, kernel_size=(3, 3), padding="same", activation=conv_activation),
+        tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
+        
+        tf.keras.layers.Conv2D(256, kernel_size=(3, 3), padding="same", activation=conv_activation),
+        tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
+        
+        tf.keras.layers.Conv2D(512, kernel_size=(3, 3), padding="same", activation=conv_activation),
+        tf.keras.layers.UpSampling2D((2, 2)),
+
+        tf.keras.layers.Conv2D(256, kernel_size=(3, 3), padding="same", activation=conv_activation),
+        tf.keras.layers.UpSampling2D((2, 2)),
+
+        tf.keras.layers.Conv2D(128, kernel_size=(3, 3), padding="same", activation=conv_activation),
+        tf.keras.layers.UpSampling2D((2, 2)),
+
+        tf.keras.layers.Conv2D(1, kernel_size=(3, 3), padding="same", activation="sigmoid")
     ])
 
     return model
@@ -286,9 +313,9 @@ class UnetGAN:
                                         generator=self.generator,
                                         discriminator=self.discriminator)
 
-        self.summary_writer = tf.summary.create_file_writer(
-            log_dir + "fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        )
+        # self.summary_writer = tf.summary.create_file_writer(
+        #     log_dir + "fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        # )
 
         self.gen_total_loss = tf.keras.metrics.Mean(name='gen_total_loss')
         self.gen_gan_loss = tf.keras.metrics.Mean(name='gen_gan_loss')
