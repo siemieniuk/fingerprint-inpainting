@@ -284,7 +284,7 @@ class UnetGAN:
             self, 
             generator_optimizer = None, discriminator_optimizer = None, 
             img_shape: Tuple[int, int, int] = (512, 384, 3),
-            checkpoint_dir: str = './unetgan_training_checkpoints', log_dir: str = 'unetgan_logs/'
+            checkpoint_dir: str = './unetgan_training_checkpoints'
         ):
         self.img_shape = img_shape
 
@@ -308,14 +308,10 @@ class UnetGAN:
         self.discriminator = self.Discriminator()
 
         self.checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt")
-        self.checkpoint = tf.train.Checkpoint(generator_optimizer=generator_optimizer,
-                                        discriminator_optimizer=discriminator_optimizer,
+        self.checkpoint = tf.train.Checkpoint(generator_optimizer=self.generator_optimizer,
+                                        discriminator_optimizer=self.discriminator_optimizer,
                                         generator=self.generator,
                                         discriminator=self.discriminator)
-
-        # self.summary_writer = tf.summary.create_file_writer(
-        #     log_dir + "fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        # )
 
         self.gen_total_loss = tf.keras.metrics.Mean(name='gen_total_loss')
         self.gen_gan_loss = tf.keras.metrics.Mean(name='gen_gan_loss')
@@ -363,24 +359,22 @@ class UnetGAN:
         inputs = tf.keras.layers.Input(shape=self.img_shape)
 
         down_stack = [
-            self.downsample(64, 4, apply_batchnorm=False),  # (batch_size, 128, 128, 64)
-            self.downsample(128, 4),  # (batch_size, 64, 64, 128)
-            self.downsample(256, 4),  # (batch_size, 32, 32, 256)
-            self.downsample(512, 4),  # (batch_size, 16, 16, 512)
-            self.downsample(512, 4),  # (batch_size, 8, 8, 512)
-            self.downsample(512, 4),  # (batch_size, 4, 4, 512)
-            self.downsample(512, 4),  # (batch_size, 2, 2, 512)
-            # self.downsample(512, 4),  # (batch_size, 1, 1, 512)
+            self.downsample(64, 4, apply_batchnorm=False),
+            self.downsample(128, 4),
+            self.downsample(256, 4),
+            self.downsample(512, 4),
+            self.downsample(512, 4),
+            self.downsample(512, 4),
+            self.downsample(512, 4)
         ]
 
         up_stack = [
-            # self.upsample(512, 4, apply_dropout=True),  # (batch_size, 2, 2, 1024)
-            self.upsample(512, 4, apply_dropout=True),  # (batch_size, 4, 4, 1024)
-            self.upsample(512, 4, apply_dropout=True),  # (batch_size, 8, 8, 1024)
-            self.upsample(512, 4),  # (batch_size, 16, 16, 1024)
-            self.upsample(256, 4),  # (batch_size, 32, 32, 512)
-            self.upsample(128, 4),  # (batch_size, 64, 64, 256)
-            self.upsample(64, 4),  # (batch_size, 128, 128, 128)
+            self.upsample(512, 4, apply_dropout=True),
+            self.upsample(512, 4, apply_dropout=True),
+            self.upsample(512, 4),
+            self.upsample(256, 4),
+            self.upsample(128, 4),
+            self.upsample(64, 4),
         ]
 
         initializer = tf.random_normal_initializer(0., 0.02)
@@ -427,25 +421,25 @@ class UnetGAN:
         inp = tf.keras.layers.Input(shape=self.img_shape, name='input_image')
         tar = tf.keras.layers.Input(shape=(self.img_shape[0], self.img_shape[1], self.OUTPUT_CHANNELS), name='target_image')
 
-        x = tf.keras.layers.concatenate([inp, tar])  # (batch_size, 256, 256, channels*2)
+        x = tf.keras.layers.concatenate([inp, tar])
 
-        down1 = self.downsample(64, 4, False)(x)  # (batch_size, 128, 128, 64)
-        down2 = self.downsample(128, 4)(down1)  # (batch_size, 64, 64, 128)
-        down3 = self.downsample(256, 4)(down2)  # (batch_size, 32, 32, 256)
+        down1 = self.downsample(64, 4, False)(x)
+        down2 = self.downsample(128, 4)(down1)
+        down3 = self.downsample(256, 4)(down2)
 
-        zero_pad1 = tf.keras.layers.ZeroPadding2D()(down3)  # (batch_size, 34, 34, 256)
+        zero_pad1 = tf.keras.layers.ZeroPadding2D()(down3)
         conv = tf.keras.layers.Conv2D(512, 4, strides=1,
                                         kernel_initializer=initializer,
-                                        use_bias=False)(zero_pad1)  # (batch_size, 31, 31, 512)
+                                        use_bias=False)(zero_pad1)
 
         batchnorm1 = tf.keras.layers.BatchNormalization()(conv)
 
         leaky_relu = tf.keras.layers.LeakyReLU()(batchnorm1)
 
-        zero_pad2 = tf.keras.layers.ZeroPadding2D()(leaky_relu)  # (batch_size, 33, 33, 512)
+        zero_pad2 = tf.keras.layers.ZeroPadding2D()(leaky_relu)
 
         last = tf.keras.layers.Conv2D(1, 4, strides=1,
-                                        kernel_initializer=initializer)(zero_pad2)  # (batch_size, 30, 30, 1)
+                                        kernel_initializer=initializer)(zero_pad2)
 
         return tf.keras.Model(inputs=[inp, tar], outputs=last)
 
@@ -460,22 +454,6 @@ class UnetGAN:
         return total_disc_loss
 
 
-    # def generate_images(model, test_input, tar):
-    #     prediction = model(test_input, training=True)
-    #     plt.figure(figsize=(15, 15))
-
-    #     display_list = [test_input[0], tar[0], prediction[0]]
-    #     title = ['Input Image', 'Ground Truth', 'Predicted Image']
-
-    #     for i in range(3):
-    #         plt.subplot(1, 3, i+1)
-    #         plt.title(title[i])
-    #         # Getting the pixel values in the [0, 1] range to plot.
-    #         plt.imshow(display_list[i] * 0.5 + 0.5)
-    #         plt.axis('off')
-    #     plt.show()
-
-
     def log_to_csv(self, filename, fieldnames, data):
         file_exists = os.path.isfile(filename)
         with open(filename, 'a', newline='') as csvfile:
@@ -483,6 +461,7 @@ class UnetGAN:
             if not file_exists:
                 writer.writeheader()  # file doesn't exist yet, write a header
             writer.writerow(data)
+
 
     @tf.function
     def train_step(self, input_image, target):
@@ -512,12 +491,6 @@ class UnetGAN:
 
         for metric in self.metrics:
             metric.update_state(target, gen_output)
-
-        # with self.summary_writer.as_default():
-        #     tf.summary.scalar('gen_total_loss', self.gen_total_loss.result(), step=step)
-        #     tf.summary.scalar('gen_gan_loss', self.gen_gan_loss.result(), step=step)
-        #     tf.summary.scalar('gen_l1_loss', self.gen_l1_loss.result(), step=step)
-        #     tf.summary.scalar('disc_loss', self.disc_loss.result(), step=step)
 
 
     def fit(self, train_ds, valid_ds, epochs, metrics: List[tf.keras.metrics.Metric] = [], checkpoint_steps=4000, log_dir="logs"):
