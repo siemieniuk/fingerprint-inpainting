@@ -17,7 +17,7 @@ class SSIMLoss(tf.keras.losses.Loss):
 @tf.function
 def MSSSIM_LossF(y_true: tf.Tensor, y_pred: tf.Tensor):
     return (
-        1 - tf.reduce_mean(tf.image.ssim_multiscale(y_true, y_pred, 1.0)) + 1e5
+        1 - tf.reduce_mean(tf.image.ssim_multiscale(y_true+1e6, y_pred+1e6, 1.0))
     )
 
 
