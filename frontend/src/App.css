@@ -1,0 +1,135 @@
+@import url('https://fonts.googleapis.com/css?family=Open+Sans');
+
+:root {
+  --color-input-primary: #4285F4;
+  --color-convert: #9D8C87;
+}
+
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+  flex: 0 1 auto;
+}
+
+main {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  flex: 0 1 auto;
+  place-items: center;
+}
+
+header {
+  display: grid;
+  grid-template-columns: auto auto;
+  column-gap: 0.5em;
+  place-items: center;
+  padding: 0.3em;
+  font-size: 35px;
+  font-weight: bolder;
+  flex: 0 0 auto;
+}
+
+@media (min-width: 640px) {
+  main {
+    grid-template-columns: 5fr 2fr 5fr;
+    width: 100%;
+    height: 100%;
+  }
+
+  #root {
+    width: min(100%, 1024px);
+    height: calc(90vh - 125px - 4rem);
+  }
+
+  section {
+    width: 100%;
+    height: 100%;
+    place-self: initial;
+  }
+
+  header {
+    height: 100px;
+  }
+
+  .box {
+    height: 100%;
+  }
+}
+
+.box {
+  min-width: 150px;
+  min-height: 150px;
+  border: solid 3px;
+  border-radius: 20px;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.box-input {
+  background-color: #B6D1FF;
+  border-color: var(--color-input-primary);
+}
+
+.box-output {
+  background-color: #FFD6A5;
+  border-color: #F7931A;
+  color: #F7931A;
+}
+
+.box-capture {
+  color: #D9D9D9;
+  font-style: italic;
+  font-weight: bolder;
+}
+
+button,
+.btn-upload {
+  border-radius: 5px;
+  color: white;
+  font-family: "Open Sans", sans-serif;
+  padding: 0.3em 0.5em;
+  border: 1px solid transparent;
+  font-size: 1em;
+  cursor: pointer;
+  transition: border-color 0.25s;
+}
+
+.btn-upload {
+  background-color: var(--color-input-primary);
+}
+
+.btn-convert {
+  background-color: var(--color-convert);
+}
+
+#file-upload {
+  width: 0;
+  height: 0;
+}
+
+button:hover {
+  border-color: #646cff;
+}
+
+button:focus,
+button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}
+
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+}
+
+a {
+  font-weight: 500;
+  color: #646cff;
+  text-decoration: inherit;
+}
