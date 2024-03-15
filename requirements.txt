@@ -9,5 +9,4 @@ tqdm
 pydot
 fastapi
 pydantic
-keras_tuner
 uvicorn
