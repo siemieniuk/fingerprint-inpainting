@@ -1,12 +1,22 @@
 version: "3.9"
 services:
   api:
-    container_name: fingerprints
+    container_name: fingerprints-backend
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: backend.Dockerfile
     ports:
       - "8000:8000"
-      # volumes:
-      # - ./backend/src:/backend/src/
-      # restart: always
+  frontend:
+    container_name: fingerprints-frontend
+    build:
+      context: .
+      dockerfile: frontend.Dockerfile
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend/src:/frontend/src
+      - ./frontend/public:/frontend/public
+      - ./frontend/index.html:/frontend/index.html
